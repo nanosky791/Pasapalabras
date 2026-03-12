@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pasapalabra Tecnológico</title>
+
+<style>
+
+body{
+font-family:Arial, Helvetica, sans-serif;
+background:#0f172a;
+color:white;
+text-align:center;
+margin:0;
+}
+
+h1{
+margin-top:15px;
+}
+
+#panel{
+font-size:18px;
+margin-top:5px;
+}
+
+#barra{
+width:300px;
+height:12px;
+background:#1e293b;
+margin:10px auto;
+border-radius:20px;
+overflow:hidden;
+}
+
+#progreso{
+height:100%;
+width:0%;
+background:#22c55e;
+}
+
+#rosco{
+width:460px;
+height:460px;
+margin:20px auto;
+position:relative;
+border-radius:50%;
+}
+
+.letra{
+position:absolute;
+width:42px;
+height:42px;
+background:#2563eb;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:bold;
+}
+
+.correcta{background:#22c55e;}
+.incorrecta{background:#ef4444;}
+.actual{
+background:#facc15;
+color:black;
+transform:scale(1.2);
+}
+
+input{
+padding:10px;
+font-size:16px;
+width:220px;
+border-radius:5px;
+border:none;
+}
+
+button{
+padding:10px 15px;
+font-size:15px;
+margin:6px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+#responder{background:#22c55e;color:white;}
+#pasar{background:#f59e0b;color:white;}
+#reiniciar{background:#6366f1;color:white;}
+
+#mensaje{
+margin-top:10px;
+font-size:16px;
+min-height:20px;
+}
+
+#pantallaFinal{
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.9);
+align-items:center;
+justify-content:center;
+flex-direction:column;
+font-size:22px;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Pasapalabra Tecnológico</h1>
+
+<div id="panel">
+⏱ Tiempo: <span id="tiempo">120</span> |
+✔ Aciertos: <span id="aciertos">0</span> |
+❌ Errores: <span id="errores">0</span>
+</div>
+
+<div id="barra">
+<div id="progreso"></div>
+</div>
+
+<div id="rosco"></div>
+
+<h2>Letra: <span id="letraActual"></span></h2>
+
+<input id="respuesta" placeholder="Escribe la palabra">
+
+<br>
+
+<button id="responder" onclick="comprobar()">Responder</button>
+<button id="pasar" onclick="pasapalabra()">Pasapalabra</button>
+<button id="reiniciar" onclick="reiniciar()">Reiniciar</button>
+
+<div id="mensaje"></div>
+
+<div id="pantallaFinal">
+<h2>Juego terminado</h2>
+<p>Aciertos: <span id="finalAciertos"></span></p>
+<p>Errores: <span id="finalErrores"></span></p>
+<button onclick="reiniciar()">Jugar otra vez</button>
+</div>
+
+<script>
+
+const palabras=[
+{letra:"A",palabra:"ACUSTICA"},
+{letra:"B",palabra:"BINARIO"},
+{letra:"C",palabra:"CHAT GPT"},
+{letra:"D",palabra:"DIAMANTE"},
+{letra:"E",palabra:"EOLICA"},
+{letra:"F",palabra:"FLUYENTE"},
+{letra:"G",palabra:"GPS"},
+{letra:"H",palabra:"HARDWARE"},
+{letra:"I",palabra:"IA"},
+{letra:"J",palabra:"J P MORGAN"},
+{letra:"L",palabra:"LE AS"},
+{letra:"M",palabra:"ATOMO"},
+{letra:"N",palabra:"CINETICA"},
+{letra:"Ñ",palabra:"CONTRASENA"},
+{letra:"O",palabra:"POLEA"},
+{letra:"P",palabra:"PROMPT"},
+{letra:"Q",palabra:"QR"},
+{letra:"R",palabra:"RENOVABLE"},
+{letra:"S",palabra:"SEDENTARISMO COGNITIVO"},
+{letra:"U",palabra:"UBER"},
+{letra:"V",palabra:"VIDEO"},
+{letra:"W",palabra:"WORD"},
+{letra:"X",palabra:"X"},
+{letra:"Y",palabra:"RAYOS"},
+{letra:"Z",palabra:"ZAPATILLA"}
+];
+
+let estado=palabras.map(()=> "pendiente");
+let actual=0;
+let aciertos=0;
+let errores=0;
+
+const rosco=document.getElementById("rosco");
+
+function crearRosco(){
+
+rosco.innerHTML="";
+
+palabras.forEach((p,i)=>{
+
+let angulo=(360/palabras.length)*i;
+let rad=angulo*Math.PI/180;
+
+let x=200+180*Math.cos(rad);
+let y=200+180*Math.sin(rad);
+
+let div=document.createElement("div");
+
+div.className="letra";
+div.innerText=p.letra;
+
+div.style.left=x+"px";
+div.style.top=y+"px";
+
+rosco.appendChild(div);
+
+});
+
+}
+
+function normalizar(texto){
+
+return texto
+.toUpperCase()
+.normalize("NFD")
+.replace(/[\u0300-\u036f]/g,"")
+.replace(/\./g,"")
+.trim();
+
+}
+
+function actualizar(){
+
+document.getElementById("letraActual").innerText=palabras[actual].letra;
+
+document.querySelectorAll(".letra").forEach((l,i)=>{
+l.classList.remove("actual");
+if(i===actual) l.classList.add("actual");
+});
+
+}
+
+function siguiente(){
+
+let inicio=actual;
+
+do{
+actual=(actual+1)%palabras.length;
+if(estado[actual]==="pendiente") break;
+}while(actual!==inicio);
+
+actualizar();
+
+}
+
+function comprobar(){
+
+let input=document.getElementById("respuesta").value;
+let respuesta=normalizar(input);
+let correcta=normalizar(palabras[actual].palabra);
+
+let letras=document.querySelectorAll(".letra");
+
+if(respuesta===correcta){
+
+letras[actual].classList.add("correcta");
+estado[actual]="correcta";
+aciertos++;
+document.getElementById("mensaje").innerText="✔ Correcto";
+
+}else{
+
+letras[actual].classList.add("incorrecta");
+estado[actual]="incorrecta";
+errores++;
+document.getElementById("mensaje").innerText=
+"✖ Incorrecto. Era: "+palabras[actual].palabra;
+
+}
+
+document.getElementById("aciertos").innerText=aciertos;
+document.getElementById("errores").innerText=errores;
+document.getElementById("respuesta").value="";
+
+actualizarProgreso();
+
+if(!estado.includes("pendiente")){
+finJuego();
+return;
+}
+
+siguiente();
+
+}
+
+function pasapalabra(){
+document.getElementById("mensaje").innerText="Pasaste palabra";
+siguiente();
+}
+
+function actualizarProgreso(){
+
+let total=palabras.length;
+let completadas=aciertos+errores;
+let porcentaje=(completadas/total)*100;
+
+document.getElementById("progreso").style.width=porcentaje+"%";
+
+}
+
+function finJuego(){
+
+clearInterval(timer);
+
+document.getElementById("finalAciertos").innerText=aciertos;
+document.getElementById("finalErrores").innerText=errores;
+
+document.getElementById("pantallaFinal").style.display="flex";
+
+}
+
+function reiniciar(){
+
+estado=palabras.map(()=> "pendiente");
+actual=0;
+aciertos=0;
+errores=0;
+tiempo=120;
+
+document.getElementById("aciertos").innerText=0;
+document.getElementById("errores").innerText=0;
+document.getElementById("tiempo").innerText=120;
+document.getElementById("mensaje").innerText="";
+document.getElementById("pantallaFinal").style.display="none";
+
+crearRosco();
+actualizar();
+
+clearInterval(timer);
+timer=setInterval(contador,1000);
+
+}
+
+function contador(){
+
+tiempo--;
+document.getElementById("tiempo").innerText=tiempo;
+
+if(tiempo<=0){
+finJuego();
+}
+
+}
+
+let tiempo=120;
+let timer=setInterval(contador,1000);
+
+document.addEventListener("keydown",function(e){
+
+if(e.key==="Enter"){
+comprobar();
+}
+
+if(e.key===" "){
+pasapalabra();
+}
+
+});
+
+crearRosco();
+actualizar();
+
+</script>
+
+</body>
+</html>
